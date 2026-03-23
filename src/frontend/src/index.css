@@ -1,0 +1,98 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("/assets/fonts/Satoshi-Variable.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/assets/fonts/JetBrainsMono-Variable.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    /* Dark discipline dashboard - always dark */
+    --background: 0.09 0.004 256;
+    --foreground: 0.93 0.005 256;
+    --card: 0.14 0.005 256;
+    --card-foreground: 0.93 0.005 256;
+    --popover: 0.17 0.007 256;
+    --popover-foreground: 0.93 0.005 256;
+    --primary: 0.97 0.002 256;
+    --primary-foreground: 0.09 0.004 256;
+    --secondary: 0.17 0.007 256;
+    --secondary-foreground: 0.93 0.005 256;
+    --muted: 0.17 0.007 256;
+    --muted-foreground: 0.72 0.008 256;
+    --accent: 0.22 0.01 256;
+    --accent-foreground: 0.93 0.005 256;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.22 0.01 256;
+    --input: 0.22 0.01 256;
+    --ring: 0.72 0.008 256;
+    --chart-1: 0.646 0.222 41.116;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.398 0.07 227.392;
+    --chart-4: 0.828 0.189 84.429;
+    --chart-5: 0.769 0.188 70.08;
+    --sidebar: 0.11 0.005 256;
+    --sidebar-foreground: 0.93 0.005 256;
+    --sidebar-primary: 0.97 0.002 256;
+    --sidebar-primary-foreground: 0.09 0.004 256;
+    --sidebar-accent: 0.17 0.007 256;
+    --sidebar-accent-foreground: 0.93 0.005 256;
+    --sidebar-border: 0.22 0.01 256;
+    --sidebar-ring: 0.72 0.008 256;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Satoshi", "Inter", sans-serif;
+    background: linear-gradient(
+      180deg,
+      oklch(0.09 0.004 256) 0%,
+      oklch(0.11 0.005 256) 100%
+    );
+    min-height: 100vh;
+  }
+
+  .font-mono {
+    font-family: "JetBrains Mono", monospace;
+  }
+}
+
+@layer components {
+  .card-sheen {
+    background: linear-gradient(
+      180deg,
+      oklch(0.17 0.007 256) 0%,
+      oklch(0.14 0.005 256) 100%
+    );
+    border: 1px solid oklch(0.22 0.01 256);
+    border-top-color: oklch(0.28 0.012 256);
+  }
+
+  .tier-label {
+    @apply text-xs font-bold tracking-widest uppercase;
+    color: oklch(0.72 0.008 256);
+  }
+
+  .score-display {
+    font-family: "JetBrains Mono", monospace;
+    @apply font-bold tabular-nums;
+  }
+}
