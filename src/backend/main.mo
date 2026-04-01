@@ -5,8 +5,10 @@ import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Iter "mo:core/Iter";
 import Int "mo:core/Int";
+import Migration "migration";
 import Nat "mo:core/Nat";
 
+(with migration = Migration.run)
 actor {
   type Tasks = [(Text, Bool)];
 
@@ -34,19 +36,59 @@ actor {
     streak_threshold : Nat;
   };
 
-  module Entry {
-    public func compareByDate(e1 : EntryWithDate, e2 : EntryWithDate) : Order.Order {
-      Text.compare(e2.date, e1.date); // Compare in descending order
-    };
-  };
-
   type EntryWithDate = {
     date : Text;
     entry : Entry;
   };
 
+  type ReflectionData = {
+    energy_level : Nat;
+    sleep_hours : Float;
+    distraction_tags : [Text];
+  };
+
+  type ReflectionWithDate = {
+    date : Text;
+    data : ReflectionData;
+  };
+
+  module Entry {
+    public func compareByDate(e1 : EntryWithDate, e2 : EntryWithDate) : Order.Order {
+      Text.compare(e2.date, e1.date);
+    };
+  };
+
+  module ReflectionData {
+    public func compare(a : ReflectionWithDate, b : ReflectionWithDate) : Order.Order {
+      Text.compare(b.date, a.date);
+    };
+  };
+
+  // Stable storage -- survives canister upgrades
+  stable var stableEntries : [(Text, Entry)] = [];
+  stable var stableReflections : [(Text, ReflectionData)] = [];
+  stable var streakThreshold : Nat = 7;
+
+  // In-memory maps rebuilt from stable storage on startup
   let entries = Map.empty<Text, Entry>();
-  var streakThreshold : Nat = 7;
+  for ((k, v) in stableEntries.vals()) {
+    entries.add(k, v);
+  };
+
+  let reflections = Map.empty<Text, ReflectionData>();
+  for ((k, v) in stableReflections.vals()) {
+    reflections.add(k, v);
+  };
+
+  system func preupgrade() {
+    stableEntries := entries.toArray();
+    stableReflections := reflections.toArray();
+  };
+
+  system func postupgrade() {
+    stableEntries := [];
+    stableReflections := [];
+  };
 
   public shared ({ caller }) func saveEntry(date : Text, entry : Entry) : async () {
     entries.add(date, entry);
@@ -58,6 +100,23 @@ actor {
 
   public query ({ caller }) func getAllEntries() : async [EntryWithDate] {
     entries.entries().toArray().map(func((date, entry)) { { date; entry } }).sort(Entry.compareByDate);
+  };
+
+  public shared ({ caller }) func saveReflection(date : Text, data : ReflectionData) : async () {
+    reflections.add(date, data);
+  };
+
+  public query ({ caller }) func getReflection(date : Text) : async ?ReflectionData {
+    reflections.get(date);
+  };
+
+  public query ({ caller }) func getAllReflections() : async [ReflectionWithDate] {
+    let array = reflections.entries().toArray().map(func((date, data)) { { date; data } });
+    array.sort();
+  };
+
+  public shared ({ caller }) func getAllReflectionDates() : async [Text] {
+    reflections.keys().toArray();
   };
 
   public query ({ caller }) func getStreakData() : async StreakData {
@@ -97,5 +156,13 @@ actor {
 
   public shared ({ caller }) func saveSettings(settings : Settings) : async () {
     streakThreshold := settings.streak_threshold;
+  };
+
+  public shared ({ caller }) func clearAllReflectionData() : async () {
+    reflections.clear();
+  };
+
+  public shared ({ caller }) func clearAllEntries() : async () {
+    entries.clear();
   };
 };

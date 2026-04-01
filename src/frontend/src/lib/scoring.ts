@@ -2,7 +2,7 @@ import type { Entry, Tasks } from "../backend.d";
 
 export const TASK_DEFINITIONS = [
   { key: "deep_work", label: "Deep Work (≥ 2 hrs)", tier: 1, points: 2 },
-  { key: "study", label: "Study (≥ 1.5 hrs)", tier: 1, points: 2 },
+  { key: "energy_execution", label: "Energy Execution", tier: 1, points: 2 },
   { key: "fitness", label: "Fitness", tier: 1, points: 2 },
   { key: "reading", label: "Reading (10+ pages)", tier: 2, points: 1 },
   { key: "writing", label: "Writing / Thinking", tier: 2, points: 1 },
@@ -143,10 +143,12 @@ export function buildEntry(
 }
 
 export function getLocalDateString(date = new Date()): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 export function isEditable(dateStr: string): boolean {

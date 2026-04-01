@@ -89,7 +89,6 @@ export class ExternalBlob {
         return this;
     }
 }
-export type Tasks = Array<[string, boolean]>;
 export interface StreakData {
     longest_streak: bigint;
     current_streak: bigint;
@@ -97,6 +96,10 @@ export interface StreakData {
 }
 export interface Settings {
     streak_threshold: bigint;
+}
+export interface ReflectionWithDate {
+    data: ReflectionData;
+    date: string;
 }
 export interface Entry {
     ratio_bonus: bigint;
@@ -115,17 +118,57 @@ export interface EntryWithDate {
     date: string;
     entry: Entry;
 }
+export type Tasks = Array<[string, boolean]>;
+export interface ReflectionData {
+    sleep_hours: number;
+    energy_level: bigint;
+    distraction_tags: Array<string>;
+}
 export interface backendInterface {
+    clearAllEntries(): Promise<void>;
+    clearAllReflectionData(): Promise<void>;
     getAllEntries(): Promise<Array<EntryWithDate>>;
+    getAllReflectionDates(): Promise<Array<string>>;
+    getAllReflections(): Promise<Array<ReflectionWithDate>>;
     getEntry(date: string): Promise<Entry | null>;
+    getReflection(date: string): Promise<ReflectionData | null>;
     getSettings(): Promise<Settings>;
     getStreakData(): Promise<StreakData>;
     saveEntry(date: string, entry: Entry): Promise<void>;
+    saveReflection(date: string, data: ReflectionData): Promise<void>;
     saveSettings(settings: Settings): Promise<void>;
 }
-import type { Entry as _Entry, StreakData as _StreakData } from "./declarations/backend.did.d.ts";
+import type { Entry as _Entry, ReflectionData as _ReflectionData, StreakData as _StreakData } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    async clearAllEntries(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllEntries();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllEntries();
+            return result;
+        }
+    }
+    async clearAllReflectionData(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllReflectionData();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllReflectionData();
+            return result;
+        }
+    }
     async getAllEntries(): Promise<Array<EntryWithDate>> {
         if (this.processError) {
             try {
@@ -137,6 +180,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllEntries();
+            return result;
+        }
+    }
+    async getAllReflectionDates(): Promise<Array<string>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllReflectionDates();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllReflectionDates();
+            return result;
+        }
+    }
+    async getAllReflections(): Promise<Array<ReflectionWithDate>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllReflections();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllReflections();
             return result;
         }
     }
@@ -152,6 +223,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getEntry(arg0);
             return from_candid_opt_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getReflection(arg0: string): Promise<ReflectionData | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getReflection(arg0);
+                return from_candid_opt_n2(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getReflection(arg0);
+            return from_candid_opt_n2(this._uploadFile, this._downloadFile, result);
         }
     }
     async getSettings(): Promise<Settings> {
@@ -172,14 +257,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getStreakData();
-                return from_candid_StreakData_n2(this._uploadFile, this._downloadFile, result);
+                return from_candid_StreakData_n3(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getStreakData();
-            return from_candid_StreakData_n2(this._uploadFile, this._downloadFile, result);
+            return from_candid_StreakData_n3(this._uploadFile, this._downloadFile, result);
         }
     }
     async saveEntry(arg0: string, arg1: Entry): Promise<void> {
@@ -193,6 +278,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.saveEntry(arg0, arg1);
+            return result;
+        }
+    }
+    async saveReflection(arg0: string, arg1: ReflectionData): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveReflection(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveReflection(arg0, arg1);
             return result;
         }
     }
@@ -211,16 +310,19 @@ export class Backend implements backendInterface {
         }
     }
 }
-function from_candid_StreakData_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _StreakData): StreakData {
-    return from_candid_record_n3(_uploadFile, _downloadFile, value);
+function from_candid_StreakData_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _StreakData): StreakData {
+    return from_candid_record_n4(_uploadFile, _downloadFile, value);
 }
 function from_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Entry]): Entry | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+function from_candid_opt_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_ReflectionData]): ReflectionData | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_opt_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_record_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     longest_streak: bigint;
     current_streak: bigint;
     last_reset_date: [] | [string];
@@ -232,7 +334,7 @@ function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint
     return {
         longest_streak: value.longest_streak,
         current_streak: value.current_streak,
-        last_reset_date: record_opt_to_undefined(from_candid_opt_n4(_uploadFile, _downloadFile, value.last_reset_date))
+        last_reset_date: record_opt_to_undefined(from_candid_opt_n5(_uploadFile, _downloadFile, value.last_reset_date))
     };
 }
 export interface CreateActorOptions {

@@ -23,6 +23,15 @@ export const Entry = IDL.Record({
   'ratio' : IDL.Float64,
 });
 export const EntryWithDate = IDL.Record({ 'date' : IDL.Text, 'entry' : Entry });
+export const ReflectionData = IDL.Record({
+  'sleep_hours' : IDL.Float64,
+  'energy_level' : IDL.Nat,
+  'distraction_tags' : IDL.Vec(IDL.Text),
+});
+export const ReflectionWithDate = IDL.Record({
+  'data' : ReflectionData,
+  'date' : IDL.Text,
+});
 export const Settings = IDL.Record({ 'streak_threshold' : IDL.Nat });
 export const StreakData = IDL.Record({
   'longest_streak' : IDL.Nat,
@@ -31,11 +40,17 @@ export const StreakData = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  'clearAllEntries' : IDL.Func([], [], []),
+  'clearAllReflectionData' : IDL.Func([], [], []),
   'getAllEntries' : IDL.Func([], [IDL.Vec(EntryWithDate)], ['query']),
+  'getAllReflectionDates' : IDL.Func([], [IDL.Vec(IDL.Text)], []),
+  'getAllReflections' : IDL.Func([], [IDL.Vec(ReflectionWithDate)], ['query']),
   'getEntry' : IDL.Func([IDL.Text], [IDL.Opt(Entry)], ['query']),
+  'getReflection' : IDL.Func([IDL.Text], [IDL.Opt(ReflectionData)], ['query']),
   'getSettings' : IDL.Func([], [Settings], ['query']),
   'getStreakData' : IDL.Func([], [StreakData], ['query']),
   'saveEntry' : IDL.Func([IDL.Text, Entry], [], []),
+  'saveReflection' : IDL.Func([IDL.Text, ReflectionData], [], []),
   'saveSettings' : IDL.Func([Settings], [], []),
 });
 
@@ -57,6 +72,15 @@ export const idlFactory = ({ IDL }) => {
     'ratio' : IDL.Float64,
   });
   const EntryWithDate = IDL.Record({ 'date' : IDL.Text, 'entry' : Entry });
+  const ReflectionData = IDL.Record({
+    'sleep_hours' : IDL.Float64,
+    'energy_level' : IDL.Nat,
+    'distraction_tags' : IDL.Vec(IDL.Text),
+  });
+  const ReflectionWithDate = IDL.Record({
+    'data' : ReflectionData,
+    'date' : IDL.Text,
+  });
   const Settings = IDL.Record({ 'streak_threshold' : IDL.Nat });
   const StreakData = IDL.Record({
     'longest_streak' : IDL.Nat,
@@ -65,11 +89,25 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    'clearAllEntries' : IDL.Func([], [], []),
+    'clearAllReflectionData' : IDL.Func([], [], []),
     'getAllEntries' : IDL.Func([], [IDL.Vec(EntryWithDate)], ['query']),
+    'getAllReflectionDates' : IDL.Func([], [IDL.Vec(IDL.Text)], []),
+    'getAllReflections' : IDL.Func(
+        [],
+        [IDL.Vec(ReflectionWithDate)],
+        ['query'],
+      ),
     'getEntry' : IDL.Func([IDL.Text], [IDL.Opt(Entry)], ['query']),
+    'getReflection' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(ReflectionData)],
+        ['query'],
+      ),
     'getSettings' : IDL.Func([], [Settings], ['query']),
     'getStreakData' : IDL.Func([], [StreakData], ['query']),
     'saveEntry' : IDL.Func([IDL.Text, Entry], [], []),
+    'saveReflection' : IDL.Func([IDL.Text, ReflectionData], [], []),
     'saveSettings' : IDL.Func([Settings], [], []),
   });
 };

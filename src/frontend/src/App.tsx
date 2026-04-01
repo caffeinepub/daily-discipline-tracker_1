@@ -2,11 +2,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { Flame, Trophy } from "lucide-react";
 import { useState } from "react";
 import { useGetStreakData } from "./hooks/useQueries";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import HistoryPage from "./pages/HistoryPage";
 import SettingsPage from "./pages/SettingsPage";
 import TodayPage from "./pages/TodayPage";
 
-type Tab = "today" | "history" | "settings";
+type Tab = "today" | "history" | "analytics" | "settings";
 
 function StreakBadge() {
   const { data: streakData } = useGetStreakData();
@@ -39,6 +40,13 @@ function StreakBadge() {
   );
 }
 
+const NAV_TABS: { id: Tab; label: string }[] = [
+  { id: "today", label: "Today" },
+  { id: "history", label: "History" },
+  { id: "analytics", label: "Analytics" },
+  { id: "settings", label: "Settings" },
+];
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("today");
 
@@ -64,49 +72,33 @@ export default function App() {
 
           <StreakBadge />
 
-          <div className="flex items-center gap-1">
-            <nav className="flex items-center gap-1">
-              {(["today", "history"] as Tab[]).map((tab) => (
-                <button
-                  type="button"
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-4 text-xs font-bold uppercase tracking-widest relative transition-colors ${
-                    activeTab === tab
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground/70"
-                  }`}
-                  data-ocid={`nav.${tab}.link`}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  {activeTab === tab && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-foreground rounded-full" />
-                  )}
-                </button>
-              ))}
-            </nav>
-            <button
-              type="button"
-              onClick={() => setActiveTab("settings")}
-              className={`px-4 py-4 text-xs font-bold uppercase tracking-widest relative transition-colors ${
-                activeTab === "settings"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground/70"
-              }`}
-              data-ocid="nav.settings.link"
-            >
-              Settings
-              {activeTab === "settings" && (
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-foreground rounded-full" />
-              )}
-            </button>
-          </div>
+          <nav className="flex items-center gap-1">
+            {NAV_TABS.map((tab) => (
+              <button
+                type="button"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-4 text-xs font-bold uppercase tracking-widest relative transition-colors ${
+                  activeTab === tab.id
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground/70"
+                }`}
+                data-ocid={`nav.${tab.id}.link`}
+              >
+                {tab.label}
+                {activeTab === tab.id && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-foreground rounded-full" />
+                )}
+              </button>
+            ))}
+          </nav>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         {activeTab === "today" && <TodayPage />}
         {activeTab === "history" && <HistoryPage />}
+        {activeTab === "analytics" && <AnalyticsPage />}
         {activeTab === "settings" && <SettingsPage />}
       </main>
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Entry, Settings } from "../backend.d";
+import type { Entry, ReflectionData, Settings } from "../backend.d";
 import { useActor } from "./useActor";
 
 export function useGetAllEntries() {
@@ -47,6 +47,48 @@ export function useGetStreakData() {
       return actor.getStreakData();
     },
     enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetReflection(date: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["reflection", date],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getReflection(date);
+    },
+    enabled: !!actor && !isFetching && !!date,
+  });
+}
+
+export function useGetAllReflections() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["reflections"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllReflections();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useSaveReflection() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      date,
+      data,
+    }: { date: string; data: ReflectionData }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.saveReflection(date, data);
+    },
+    onSuccess: (_result, { date }) => {
+      qc.invalidateQueries({ queryKey: ["reflections"] });
+      qc.invalidateQueries({ queryKey: ["reflection", date] });
+    },
   });
 }
 

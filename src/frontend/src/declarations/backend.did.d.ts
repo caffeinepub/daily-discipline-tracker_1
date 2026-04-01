@@ -24,6 +24,12 @@ export interface Entry {
   'ratio' : number,
 }
 export interface EntryWithDate { 'date' : string, 'entry' : Entry }
+export interface ReflectionData {
+  'sleep_hours' : number,
+  'energy_level' : bigint,
+  'distraction_tags' : Array<string>,
+}
+export interface ReflectionWithDate { 'data' : ReflectionData, 'date' : string }
 export interface Settings { 'streak_threshold' : bigint }
 export interface StreakData {
   'longest_streak' : bigint,
@@ -32,11 +38,17 @@ export interface StreakData {
 }
 export type Tasks = Array<[string, boolean]>;
 export interface _SERVICE {
+  'clearAllEntries' : ActorMethod<[], undefined>,
+  'clearAllReflectionData' : ActorMethod<[], undefined>,
   'getAllEntries' : ActorMethod<[], Array<EntryWithDate>>,
+  'getAllReflectionDates' : ActorMethod<[], Array<string>>,
+  'getAllReflections' : ActorMethod<[], Array<ReflectionWithDate>>,
   'getEntry' : ActorMethod<[string], [] | [Entry]>,
+  'getReflection' : ActorMethod<[string], [] | [ReflectionData]>,
   'getSettings' : ActorMethod<[], Settings>,
   'getStreakData' : ActorMethod<[], StreakData>,
   'saveEntry' : ActorMethod<[string, Entry], undefined>,
+  'saveReflection' : ActorMethod<[string, ReflectionData], undefined>,
   'saveSettings' : ActorMethod<[Settings], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

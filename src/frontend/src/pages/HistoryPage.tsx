@@ -5,11 +5,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronRight, Edit2, Loader2, Lock } from "lucide-react";
+import { ChevronRight, Download, Edit2, Loader2, Lock } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import type { EntryWithDate } from "../backend.d";
-import { useGetAllEntries } from "../hooks/useQueries";
+import {
+  useGetAllEntries,
+  useGetAllReflections,
+  useGetReflection,
+} from "../hooks/useQueries";
 import {
   TASK_DEFINITIONS,
   getFeedback,
@@ -24,8 +28,57 @@ function scoreColor(score: number): string {
   return "text-red-400";
 }
 
+function ReflectionDetail({ date }: { date: string }) {
+  const { data: refl } = useGetReflection(date);
+  if (!refl) return null;
+  const hasData =
+    Number(refl.energy_level) > 0 ||
+    refl.sleep_hours > 0 ||
+    refl.distraction_tags.length > 0;
+  if (!hasData) return null;
+  return (
+    <div className="bg-accent/30 rounded p-3 border border-yellow-400/20">
+      <p className="tier-label mb-2 text-yellow-400/80">Reflection Data</p>
+      <div className="space-y-1.5 text-sm">
+        {Number(refl.energy_level) > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Energy Level</span>
+            <span className="font-mono font-semibold text-foreground">
+              {Number(refl.energy_level)}/10
+            </span>
+          </div>
+        )}
+        {refl.sleep_hours > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Sleep</span>
+            <span className="font-mono font-semibold text-foreground">
+              {refl.sleep_hours}h
+            </span>
+          </div>
+        )}
+        {refl.distraction_tags.length > 0 && (
+          <div>
+            <span className="text-muted-foreground text-xs">Distractions</span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {refl.distraction_tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="text-xs px-2 py-0.5 rounded border border-border text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function HistoryPage() {
   const { data: entries, isLoading } = useGetAllEntries();
+
   const [selected, setSelected] = useState<EntryWithDate | null>(null);
 
   if (isLoading) {
@@ -43,13 +96,82 @@ export default function HistoryPage() {
     b.date.localeCompare(a.date),
   );
 
+  function handleExportJSON() {
+    const blob = new Blob([JSON.stringify(sorted, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "discipline-tracker-export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleExportCSV() {
+    const headers = [
+      "Date",
+      "Final Score",
+      "Task Score",
+      "Screen Time (min)",
+      "Productive Time (min)",
+      "Ratio %",
+      "Deep Work",
+      "Reflection",
+    ];
+    const rows = sorted.map((item) => [
+      item.date,
+      Number(item.entry.final_score),
+      Number(item.entry.task_score),
+      Number(item.entry.screen_time),
+      Number(item.entry.productive_time),
+      Math.round(item.entry.ratio * 100),
+      item.entry.deep_work_done ? "Yes" : "No",
+      `"${item.entry.reflection.replace(/"/g, '""')}"`,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "discipline-tracker-export.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <p className="tier-label mb-4">Entry History</p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="tier-label">Entry History</p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            disabled={isLoading || sorted.length === 0}
+            className="border-border text-muted-foreground hover:text-foreground gap-1.5 text-xs"
+            data-ocid="history.csv_button"
+          >
+            <Download className="w-3.5 h-3.5" />
+            CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportJSON}
+            disabled={isLoading || sorted.length === 0}
+            className="border-border text-muted-foreground hover:text-foreground gap-1.5 text-xs"
+            data-ocid="history.export_button"
+          >
+            <Download className="w-3.5 h-3.5" />
+            JSON
+          </Button>
+        </div>
+      </div>
 
       {sorted.length === 0 ? (
         <div
@@ -218,6 +340,9 @@ export default function HistoryPage() {
                     </p>
                   </div>
                 )}
+
+                {/* Structured reflection data */}
+                <ReflectionDetail date={selected.date} />
 
                 <p className="text-sm font-semibold text-foreground border-t border-border pt-3">
                   {getFeedback(Number(selected.entry.final_score))}
