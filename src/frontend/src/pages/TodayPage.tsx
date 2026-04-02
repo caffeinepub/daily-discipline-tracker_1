@@ -1,6 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -9,11 +14,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertTriangle,
   CheckCircle,
+  ChevronDown,
   Loader2,
   Lock,
   MinusCircle,
@@ -25,8 +38,10 @@ import type { Entry } from "../backend.d";
 import {
   useGetAllEntries,
   useGetAllReflections,
+  useGetDailyMetrics,
   useGetEntry,
   useGetReflection,
+  useSaveDailyMetrics,
   useSaveEntry,
   useSaveReflection,
 } from "../hooks/useQueries";
@@ -35,6 +50,7 @@ import {
   TASK_DEFINITIONS,
   buildEntry,
   calculateScore,
+  getAllowedEntryDates,
   getFeedback,
   getLocalDateString,
   minutesToDisplay,
@@ -56,13 +72,58 @@ const TIER_POINTS: Record<number, string> = {
   4: "1 pt",
 };
 
-const DISTRACTION_TAGS = [
-  "Phone distraction",
-  "Social media",
-  "Low energy",
-  "Poor planning",
-  "Procrastination",
-  "Other",
+const DISTRACTION_CATEGORIES = [
+  {
+    label: "Digital",
+    tags: [
+      "YouTube",
+      "Instagram",
+      "Reddit",
+      "Discord",
+      "Random Internet Browsing",
+      "Short-form videos",
+      "Gaming",
+      "Messaging / Chatting",
+      "Phone scrolling",
+      "News reading",
+    ],
+  },
+  {
+    label: "Mental",
+    tags: [
+      "Procrastination",
+      "Task avoidance",
+      "Overthinking",
+      "Low motivation",
+      "Mental fatigue",
+      "Perfectionism",
+      "Difficulty starting tasks",
+      "Stress",
+    ],
+  },
+  {
+    label: "Environmental",
+    tags: [
+      "Noise",
+      "Interruptions",
+      "Uncomfortable workspace",
+      "Poor study environment",
+    ],
+  },
+  {
+    label: "Behavioral",
+    tags: [
+      "Late start to work",
+      "Poor planning",
+      "Switching tasks too often",
+      "No clear goal",
+      "Multitasking",
+    ],
+  },
+  {
+    label: "Physical",
+    tags: ["Low sleep", "Low energy", "Hunger", "Headache", "Eye strain"],
+  },
 ];
 
 type ScoreResult = {
@@ -119,14 +180,98 @@ function RiskBadge({
   );
 }
 
+function dateLabelSuffix(date: string, _today: string): string {
+  const allowed = getAllowedEntryDates();
+  const idx = allowed.indexOf(date);
+  if (idx === 0) return " (Today)";
+  if (idx === 1) return " (Yesterday)";
+  if (idx === 2) return " (2 days ago)";
+  return "";
+}
+
+function MetricSlider({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+          {label}
+        </Label>
+        <span className="font-mono text-sm font-bold text-foreground">
+          {value === 0 ? "—" : `${value}/10`}
+        </span>
+      </div>
+      <Slider
+        min={0}
+        max={10}
+        step={1}
+        value={[value]}
+        onValueChange={([v]) => onChange(v)}
+        className="w-full"
+      />
+    </div>
+  );
+}
+
+function DistractionTagSelector({
+  selectedTags,
+  onToggle,
+}: {
+  selectedTags: string[];
+  onToggle: (tag: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      {DISTRACTION_CATEGORIES.map((cat) => (
+        <div key={cat.label}>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-1.5">
+            {cat.label}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {cat.tags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => onToggle(tag)}
+                className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                  selectedTags.includes(tag)
+                    ? "bg-primary border-primary text-primary-foreground"
+                    : "border-border text-muted-foreground hover:border-foreground/40"
+                }`}
+                data-ocid="today.tag_toggle"
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function TodayPage() {
   const today = getLocalDateString();
-  const { data: existingEntry, isLoading: loadingEntry } = useGetEntry(today);
-  const { data: existingReflection } = useGetReflection(today);
+  const allowedDates = getAllowedEntryDates();
+
+  const [selectedDate, setSelectedDate] = useState<string>(today);
+
+  const { data: existingEntry, isLoading: loadingEntry } =
+    useGetEntry(selectedDate);
+  const { data: existingReflection } = useGetReflection(selectedDate);
+  const { data: existingMetrics } = useGetDailyMetrics(selectedDate);
   const { data: allEntries = [] } = useGetAllEntries();
   const { data: allReflections = [] } = useGetAllReflections();
   const saveEntry = useSaveEntry();
   const saveReflection = useSaveReflection();
+  const saveDailyMetrics = useSaveDailyMetrics();
 
   const [taskMap, setTaskMap] = useState<Record<string, boolean>>({});
   const [energyRating, setEnergyRating] = useState<number>(0);
@@ -135,17 +280,72 @@ export default function TodayPage() {
   const [productiveTimeInput, setProductiveTimeInput] = useState("");
   const [note, setNote] = useState("");
   const [savedResult, setSavedResult] = useState<ScoreResult | null>(null);
+  const [savedDate, setSavedDate] = useState<string | null>(null);
   const [reflectionOpen, setReflectionOpen] = useState(false);
   const [reflection, setReflection] = useState("");
   const [pendingEntry, setPendingEntry] = useState<Entry | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Reflection structured fields
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [conflictEntry, setConflictEntry] = useState<Entry | null>(null);
+  const [conflictScore, setConflictScore] = useState<ScoreResult | null>(null);
+
+  // Reflection structured fields (shared with failure dialog)
   const [reflEnergyLevel, setReflEnergyLevel] = useState<number>(0);
   const [reflSleepHours, setReflSleepHours] = useState<string>("");
   const [reflTags, setReflTags] = useState<string[]>([]);
 
+  // Daily Metrics fields
+  const [metricsOpen, setMetricsOpen] = useState(false);
+  const [focusQuality, setFocusQuality] = useState<number>(0);
+  const [mentalClarity, setMentalClarity] = useState<number>(0);
+  const [motivationLevel, setMotivationLevel] = useState<number>(0);
+  const [dayRating, setDayRating] = useState<number>(0);
+
   const energyExecutionDone = energyRating >= 3 && energyActionDone;
+
+  const getLiveScore = (): number => {
+    const screenMins = parseTimeToMinutes(screenTimeInput) ?? 0;
+    const productiveMins = parseTimeToMinutes(productiveTimeInput) ?? 0;
+    const effective = { ...taskMap, energy_execution: energyExecutionDone };
+    return calculateScore(effective, screenMins, productiveMins).final_score;
+  };
+
+  // Auto-expand metrics when live score < 8
+  useEffect(() => {
+    const screenMins = parseTimeToMinutes(screenTimeInput) ?? 0;
+    const productiveMins = parseTimeToMinutes(productiveTimeInput) ?? 0;
+    const effective = { ...taskMap, energy_execution: energyExecutionDone };
+    const score = calculateScore(
+      effective,
+      screenMins,
+      productiveMins,
+    ).final_score;
+    if (score < 8) {
+      setMetricsOpen(true);
+    }
+  }, [taskMap, screenTimeInput, productiveTimeInput, energyExecutionDone]);
+
+  const resetForm = () => {
+    setTaskMap({});
+    setEnergyRating(0);
+    setEnergyActionDone(false);
+    setScreenTimeInput("");
+    setProductiveTimeInput("");
+    setNote("");
+    setReflection("");
+    setSavedResult(null);
+    setSavedDate(null);
+    setErrors({});
+    setReflEnergyLevel(0);
+    setReflSleepHours("");
+    setReflTags([]);
+    setMetricsOpen(false);
+    setFocusQuality(0);
+    setMentalClarity(0);
+    setMotivationLevel(0);
+    setDayRating(0);
+  };
 
   useEffect(() => {
     if (existingEntry) {
@@ -171,6 +371,21 @@ export default function TodayPage() {
       setReflTags(existingReflection.distraction_tags);
     }
   }, [existingReflection]);
+
+  useEffect(() => {
+    if (existingMetrics) {
+      setReflEnergyLevel(Number(existingMetrics.energy_level));
+      setReflSleepHours(
+        existingMetrics.sleep_hours > 0
+          ? String(existingMetrics.sleep_hours)
+          : "",
+      );
+      setFocusQuality(Number(existingMetrics.focus_quality));
+      setMentalClarity(Number(existingMetrics.mental_clarity));
+      setMotivationLevel(Number(existingMetrics.motivation_level));
+      setDayRating(Number(existingMetrics.day_rating));
+    }
+  }, [existingMetrics]);
 
   const getEffectiveTaskMap = () => ({
     ...taskMap,
@@ -221,6 +436,31 @@ export default function TodayPage() {
       note,
       reflection,
     );
+
+    if (existingEntry && !isFormPrepopulated()) {
+      setConflictEntry(entry);
+      setConflictScore(score);
+      setConflictOpen(true);
+      return;
+    }
+
+    proceedWithSave(entry, score);
+  };
+
+  const isFormPrepopulated = (): boolean => {
+    if (!existingEntry) return false;
+    const existingScreen = minutesToDisplay(Number(existingEntry.screen_time));
+    const existingProductive = minutesToDisplay(
+      Number(existingEntry.productive_time),
+    );
+    return (
+      screenTimeInput === existingScreen &&
+      productiveTimeInput === existingProductive &&
+      note === existingEntry.note
+    );
+  };
+
+  const proceedWithSave = (entry: Entry, score: ScoreResult) => {
     if (score.final_score < 8) {
       setPendingEntry(entry);
       setReflectionOpen(true);
@@ -229,15 +469,39 @@ export default function TodayPage() {
     }
   };
 
+  const persistDailyMetrics = (date: string) => {
+    const sleepVal = Number.parseFloat(reflSleepHours);
+    saveDailyMetrics.mutate({
+      date,
+      data: {
+        energy_level: BigInt(reflEnergyLevel),
+        sleep_hours: Number.isNaN(sleepVal) ? 0 : sleepVal,
+        focus_quality: BigInt(focusQuality),
+        mental_clarity: BigInt(mentalClarity),
+        motivation_level: BigInt(motivationLevel),
+        day_rating: BigInt(dayRating),
+      },
+    });
+  };
+
   const doSave = (entry: Entry, score: ScoreResult) => {
     saveEntry.mutate(
-      { date: today, entry },
+      { date: selectedDate, entry },
       {
         onSuccess: () => {
           setSavedResult(score);
-          toast.success(existingEntry ? "Entry updated." : "Entry saved.");
+          setSavedDate(selectedDate);
+          toast.success(
+            existingEntry
+              ? `Entry updated for ${selectedDate}.`
+              : `Entry saved for ${selectedDate}.`,
+          );
+          persistDailyMetrics(selectedDate);
         },
-        onError: () => toast.error("Failed to save entry."),
+        onError: (err) => {
+          console.error("Save entry error:", err);
+          toast.error("Failed to save entry. Please try again.");
+        },
       },
     );
   };
@@ -257,10 +521,9 @@ export default function TodayPage() {
     setReflectionOpen(false);
     doSave(updatedEntry, score);
 
-    // Save structured reflection data
     const sleepVal = Number.parseFloat(reflSleepHours);
     saveReflection.mutate({
-      date: today,
+      date: selectedDate,
       data: {
         energy_level: BigInt(reflEnergyLevel),
         sleep_hours: Number.isNaN(sleepVal) ? 0 : sleepVal,
@@ -282,6 +545,14 @@ export default function TodayPage() {
 
   const isUpdate = !!existingEntry;
   const tiers = [1, 2, 3, 4];
+  const liveScore = getLiveScore();
+  const metricsAllFilled =
+    reflEnergyLevel > 0 &&
+    reflSleepHours !== "" &&
+    focusQuality > 0 &&
+    mentalClarity > 0 &&
+    motivationLevel > 0 &&
+    dayRating > 0;
 
   return (
     <motion.div
@@ -290,20 +561,51 @@ export default function TodayPage() {
       transition={{ duration: 0.3 }}
       className="space-y-5"
     >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="tier-label">Today</p>
-          <p className="text-foreground font-semibold">{today}</p>
+      {/* Date Picker */}
+      <div className="card-sheen rounded-lg p-4 shadow-card">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="tier-label">Entry Date</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Backdating allowed up to 2 days
+            </p>
+          </div>
+          <Select
+            value={selectedDate}
+            onValueChange={(d) => {
+              resetForm();
+              setSelectedDate(d);
+            }}
+          >
+            <SelectTrigger
+              className="w-52 bg-accent/30 border-border text-foreground"
+              data-ocid="today.date_picker"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="card-sheen border-border">
+              {allowedDates.map((d) => (
+                <SelectItem key={d} value={d} className="font-mono">
+                  {d}
+                  {dateLabelSuffix(d, today)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         {isUpdate && (
-          <span className="text-xs text-muted-foreground border border-border rounded px-2 py-1">
-            Editing existing entry
-          </span>
+          <div className="mt-2 pt-2 border-t border-border flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+            <span className="text-xs text-yellow-400/80">
+              An entry already exists for this date — you are editing it
+            </span>
+          </div>
         )}
       </div>
 
-      {/* Daily Risk Score Badge */}
-      <RiskBadge entries={allEntries} reflections={allReflections} />
+      {selectedDate === today && (
+        <RiskBadge entries={allEntries} reflections={allReflections} />
+      )}
 
       <div className="card-sheen rounded-lg p-5 shadow-card space-y-5">
         {tiers.map((tier) => {
@@ -425,6 +727,105 @@ export default function TodayPage() {
         />
       </div>
 
+      {/* Daily Metrics Collapsible */}
+      <div className="card-sheen rounded-lg shadow-card overflow-hidden">
+        <Collapsible open={metricsOpen} onOpenChange={setMetricsOpen}>
+          <CollapsibleTrigger
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-accent/20 transition-colors"
+            data-ocid="today.metrics_panel"
+          >
+            <div className="flex items-center gap-3">
+              <span className="tier-label">Daily Metrics</span>
+              {liveScore < 8 && !metricsAllFilled && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 font-medium">
+                  Fill to improve analysis
+                </span>
+              )}
+            </div>
+            <ChevronDown
+              className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${
+                metricsOpen ? "rotate-180" : ""
+              }`}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-5 pb-5 space-y-5 border-t border-border pt-4">
+              {liveScore < 8 && (
+                <div className="flex items-start gap-2 p-3 rounded bg-yellow-400/10 border border-yellow-400/20">
+                  <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-yellow-400/90">
+                    Your score is below 8 — fill in these metrics to track what
+                    went wrong and improve analysis accuracy.
+                  </p>
+                </div>
+              )}
+
+              <MetricSlider
+                label="Energy Level"
+                value={reflEnergyLevel}
+                onChange={setReflEnergyLevel}
+              />
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Sleep Hours
+                  </Label>
+                  <span className="font-mono text-sm font-bold text-foreground">
+                    {reflSleepHours !== "" ? `${reflSleepHours}h` : "—"}
+                  </span>
+                </div>
+                <Input
+                  type="number"
+                  placeholder="e.g. 7.5"
+                  value={reflSleepHours}
+                  onChange={(e) => setReflSleepHours(e.target.value)}
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  className="bg-accent/30 border-border text-foreground placeholder:text-muted-foreground/50"
+                  data-ocid="today.sleep_input"
+                />
+              </div>
+
+              <MetricSlider
+                label="Focus Quality"
+                value={focusQuality}
+                onChange={setFocusQuality}
+              />
+
+              <MetricSlider
+                label="Mental Clarity"
+                value={mentalClarity}
+                onChange={setMentalClarity}
+              />
+
+              <MetricSlider
+                label="Motivation Level"
+                value={motivationLevel}
+                onChange={setMotivationLevel}
+              />
+
+              <MetricSlider
+                label="Day Rating"
+                value={dayRating}
+                onChange={setDayRating}
+              />
+
+              <div className="space-y-3 pt-1">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Distraction Sources
+                </Label>
+                <DistractionTagSelector
+                  selectedTags={reflTags}
+                  onToggle={toggleTag}
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
       <Button
         onClick={handleSave}
         disabled={saveEntry.isPending}
@@ -441,13 +842,19 @@ export default function TodayPage() {
             : "Save Entry"}
       </Button>
 
-      {savedResult && (
+      {savedResult && savedDate && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           className="card-sheen rounded-lg p-5 shadow-card"
           data-ocid="today.success_state"
         >
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircle className="w-4 h-4 text-green-400" />
+            <p className="tier-label text-green-400">
+              Entry saved — {savedDate}
+            </p>
+          </div>
           <p className="tier-label mb-4">Score Breakdown</p>
           <div className="flex items-center justify-between mb-4">
             <span className="text-muted-foreground text-sm">Final Score</span>
@@ -492,6 +899,77 @@ export default function TodayPage() {
         </motion.div>
       )}
 
+      {/* Conflict Dialog */}
+      <Dialog open={conflictOpen} onOpenChange={setConflictOpen}>
+        <DialogContent
+          className="card-sheen border-border max-w-sm"
+          data-ocid="today.conflict_dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              Entry already exists
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-1">
+            An entry for{" "}
+            <span className="font-mono text-foreground">{selectedDate}</span>{" "}
+            already exists. What would you like to do?
+          </p>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              onClick={() => {
+                setConflictOpen(false);
+                if (existingEntry) {
+                  const map = tasksToMap(existingEntry.tasks);
+                  setTaskMap(map);
+                  setScreenTimeInput(
+                    minutesToDisplay(Number(existingEntry.screen_time)),
+                  );
+                  setProductiveTimeInput(
+                    minutesToDisplay(Number(existingEntry.productive_time)),
+                  );
+                  setNote(existingEntry.note);
+                  setReflection(existingEntry.reflection);
+                  toast.info(
+                    "Existing entry loaded — make your changes and save.",
+                  );
+                }
+              }}
+              className="w-full bg-primary text-primary-foreground font-semibold"
+              data-ocid="today.conflict_edit"
+            >
+              Edit existing entry
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConflictOpen(false);
+                if (conflictEntry && conflictScore) {
+                  proceedWithSave(conflictEntry, conflictScore);
+                }
+              }}
+              className="w-full border-border text-muted-foreground hover:text-foreground"
+              data-ocid="today.conflict_overwrite"
+            >
+              Overwrite entry
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setConflictOpen(false);
+                setConflictEntry(null);
+                setConflictScore(null);
+              }}
+              className="w-full text-muted-foreground"
+              data-ocid="today.conflict_cancel"
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reflection / Failure Dialog */}
       <Dialog open={reflectionOpen} onOpenChange={setReflectionOpen}>
         <DialogContent
           className="card-sheen border-border max-w-md max-h-[85vh] overflow-y-auto"
@@ -504,7 +982,6 @@ export default function TodayPage() {
           </DialogHeader>
 
           <div className="py-2 space-y-5">
-            {/* Free text reflection */}
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                 Reflection
@@ -519,7 +996,6 @@ export default function TodayPage() {
               />
             </div>
 
-            {/* Energy Level 1-10 */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -544,7 +1020,6 @@ export default function TodayPage() {
               </div>
             </div>
 
-            {/* Sleep Hours */}
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                 Sleep Hours (optional)
@@ -562,28 +1037,14 @@ export default function TodayPage() {
               />
             </div>
 
-            {/* Distraction Tags */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                Distraction Causes
+                Distraction Sources
               </Label>
-              <div className="flex flex-wrap gap-2">
-                {DISTRACTION_TAGS.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
-                      reflTags.includes(tag)
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "border-border text-muted-foreground hover:border-foreground/40"
-                    }`}
-                    data-ocid={"today.tag_toggle"}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
+              <DistractionTagSelector
+                selectedTags={reflTags}
+                onToggle={toggleTag}
+              />
             </div>
           </div>
 

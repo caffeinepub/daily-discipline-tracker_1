@@ -5,10 +5,10 @@ import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Iter "mo:core/Iter";
 import Int "mo:core/Int";
-import Migration "migration";
+
 import Nat "mo:core/Nat";
 
-(with migration = Migration.run)
+
 actor {
   type Tasks = [(Text, Bool)];
 
@@ -52,6 +52,16 @@ actor {
     data : ReflectionData;
   };
 
+  // New structured daily metrics (separate stable var to preserve existing ReflectionData)
+  type DailyMetrics = {
+    energy_level : Nat;
+    sleep_hours : Float;
+    focus_quality : Nat;
+    mental_clarity : Nat;
+    motivation_level : Nat;
+    day_rating : Nat;
+  };
+
   module Entry {
     public func compareByDate(e1 : EntryWithDate, e2 : EntryWithDate) : Order.Order {
       Text.compare(e2.date, e1.date);
@@ -67,6 +77,7 @@ actor {
   // Stable storage -- survives canister upgrades
   stable var stableEntries : [(Text, Entry)] = [];
   stable var stableReflections : [(Text, ReflectionData)] = [];
+  stable var stableMetrics : [(Text, DailyMetrics)] = [];
   stable var streakThreshold : Nat = 7;
 
   // In-memory maps rebuilt from stable storage on startup
@@ -80,14 +91,21 @@ actor {
     reflections.add(k, v);
   };
 
+  let metrics = Map.empty<Text, DailyMetrics>();
+  for ((k, v) in stableMetrics.vals()) {
+    metrics.add(k, v);
+  };
+
   system func preupgrade() {
     stableEntries := entries.toArray();
     stableReflections := reflections.toArray();
+    stableMetrics := metrics.toArray();
   };
 
   system func postupgrade() {
     stableEntries := [];
     stableReflections := [];
+    stableMetrics := [];
   };
 
   public shared ({ caller }) func saveEntry(date : Text, entry : Entry) : async () {
@@ -117,6 +135,15 @@ actor {
 
   public shared ({ caller }) func getAllReflectionDates() : async [Text] {
     reflections.keys().toArray();
+  };
+
+  // Daily Metrics endpoints
+  public shared ({ caller }) func saveDailyMetrics(date : Text, data : DailyMetrics) : async () {
+    metrics.add(date, data);
+  };
+
+  public query ({ caller }) func getDailyMetrics(date : Text) : async ?DailyMetrics {
+    metrics.get(date);
   };
 
   public query ({ caller }) func getStreakData() : async StreakData {

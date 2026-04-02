@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Entry, ReflectionData, Settings } from "../backend.d";
+import type {
+  DailyMetrics,
+  Entry,
+  ReflectionData,
+  Settings,
+} from "../backend.d";
 import { useActor } from "./useActor";
 
 export function useGetAllEntries() {
@@ -118,6 +123,39 @@ export function useSaveSettings() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+}
+
+export function useGetDailyMetrics(date: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<DailyMetrics | null>({
+    queryKey: ["dailyMetrics", date],
+    queryFn: async () => {
+      if (!actor) return null;
+      // actor type from backend.ts doesn't include new methods yet; cast to any
+      return (actor as any).getDailyMetrics(
+        date,
+      ) as Promise<DailyMetrics | null>;
+    },
+    enabled: !!actor && !isFetching && !!date,
+  });
+}
+
+export function useSaveDailyMetrics() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      date,
+      data,
+    }: { date: string; data: DailyMetrics }) => {
+      if (!actor) throw new Error("No actor");
+      // actor type from backend.ts doesn't include new methods yet; cast to any
+      return (actor as any).saveDailyMetrics(date, data) as Promise<void>;
+    },
+    onSuccess: (_result, { date }) => {
+      qc.invalidateQueries({ queryKey: ["dailyMetrics", date] });
     },
   });
 }

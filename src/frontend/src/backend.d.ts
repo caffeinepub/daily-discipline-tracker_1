@@ -42,6 +42,14 @@ export interface ReflectionData {
     energy_level: bigint;
     distraction_tags: Array<string>;
 }
+export interface DailyMetrics {
+    energy_level: bigint;
+    sleep_hours: number;
+    focus_quality: bigint;
+    mental_clarity: bigint;
+    motivation_level: bigint;
+    day_rating: bigint;
+}
 export interface backendInterface {
     clearAllEntries(): Promise<void>;
     clearAllReflectionData(): Promise<void>;
@@ -50,9 +58,11 @@ export interface backendInterface {
     getAllReflections(): Promise<Array<ReflectionWithDate>>;
     getEntry(date: string): Promise<Entry | null>;
     getReflection(date: string): Promise<ReflectionData | null>;
+    getDailyMetrics(date: string): Promise<DailyMetrics | null>;
     getSettings(): Promise<Settings>;
     getStreakData(): Promise<StreakData>;
     saveEntry(date: string, entry: Entry): Promise<void>;
     saveReflection(date: string, data: ReflectionData): Promise<void>;
+    saveDailyMetrics(date: string, data: DailyMetrics): Promise<void>;
     saveSettings(settings: Settings): Promise<void>;
 }

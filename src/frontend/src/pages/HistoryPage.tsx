@@ -351,7 +351,8 @@ export default function HistoryPage() {
                 {!isEditable(selected.date) && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
                     <Lock className="w-3 h-3" />
-                    Entry locked. Only today and yesterday are editable.
+                    Entry locked. Only entries from the last 3 days are
+                    editable.
                   </div>
                 )}
               </div>

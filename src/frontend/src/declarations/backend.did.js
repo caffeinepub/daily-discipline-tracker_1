@@ -38,6 +38,14 @@ export const StreakData = IDL.Record({
   'current_streak' : IDL.Nat,
   'last_reset_date' : IDL.Opt(IDL.Text),
 });
+export const DailyMetrics = IDL.Record({
+  'energy_level' : IDL.Nat,
+  'sleep_hours' : IDL.Float64,
+  'focus_quality' : IDL.Nat,
+  'mental_clarity' : IDL.Nat,
+  'motivation_level' : IDL.Nat,
+  'day_rating' : IDL.Nat,
+});
 
 export const idlService = IDL.Service({
   'clearAllEntries' : IDL.Func([], [], []),
@@ -47,10 +55,12 @@ export const idlService = IDL.Service({
   'getAllReflections' : IDL.Func([], [IDL.Vec(ReflectionWithDate)], ['query']),
   'getEntry' : IDL.Func([IDL.Text], [IDL.Opt(Entry)], ['query']),
   'getReflection' : IDL.Func([IDL.Text], [IDL.Opt(ReflectionData)], ['query']),
+  'getDailyMetrics' : IDL.Func([IDL.Text], [IDL.Opt(DailyMetrics)], ['query']),
   'getSettings' : IDL.Func([], [Settings], ['query']),
   'getStreakData' : IDL.Func([], [StreakData], ['query']),
   'saveEntry' : IDL.Func([IDL.Text, Entry], [], []),
   'saveReflection' : IDL.Func([IDL.Text, ReflectionData], [], []),
+  'saveDailyMetrics' : IDL.Func([IDL.Text, DailyMetrics], [], []),
   'saveSettings' : IDL.Func([Settings], [], []),
 });
 
@@ -87,27 +97,29 @@ export const idlFactory = ({ IDL }) => {
     'current_streak' : IDL.Nat,
     'last_reset_date' : IDL.Opt(IDL.Text),
   });
+  const DailyMetrics = IDL.Record({
+    'energy_level' : IDL.Nat,
+    'sleep_hours' : IDL.Float64,
+    'focus_quality' : IDL.Nat,
+    'mental_clarity' : IDL.Nat,
+    'motivation_level' : IDL.Nat,
+    'day_rating' : IDL.Nat,
+  });
   
   return IDL.Service({
     'clearAllEntries' : IDL.Func([], [], []),
     'clearAllReflectionData' : IDL.Func([], [], []),
     'getAllEntries' : IDL.Func([], [IDL.Vec(EntryWithDate)], ['query']),
     'getAllReflectionDates' : IDL.Func([], [IDL.Vec(IDL.Text)], []),
-    'getAllReflections' : IDL.Func(
-        [],
-        [IDL.Vec(ReflectionWithDate)],
-        ['query'],
-      ),
+    'getAllReflections' : IDL.Func([], [IDL.Vec(ReflectionWithDate)], ['query']),
     'getEntry' : IDL.Func([IDL.Text], [IDL.Opt(Entry)], ['query']),
-    'getReflection' : IDL.Func(
-        [IDL.Text],
-        [IDL.Opt(ReflectionData)],
-        ['query'],
-      ),
+    'getReflection' : IDL.Func([IDL.Text], [IDL.Opt(ReflectionData)], ['query']),
+    'getDailyMetrics' : IDL.Func([IDL.Text], [IDL.Opt(DailyMetrics)], ['query']),
     'getSettings' : IDL.Func([], [Settings], ['query']),
     'getStreakData' : IDL.Func([], [StreakData], ['query']),
     'saveEntry' : IDL.Func([IDL.Text, Entry], [], []),
     'saveReflection' : IDL.Func([IDL.Text, ReflectionData], [], []),
+    'saveDailyMetrics' : IDL.Func([IDL.Text, DailyMetrics], [], []),
     'saveSettings' : IDL.Func([Settings], [], []),
   });
 };

@@ -151,10 +151,28 @@ export function getLocalDateString(date = new Date()): string {
   }).format(date);
 }
 
+/**
+ * Returns the IST date string offset by `daysBack` days (0 = today, 1 = yesterday, etc.)
+ */
+export function getISTDateOffset(daysBack: number): string {
+  return getLocalDateString(new Date(Date.now() - daysBack * 86400000));
+}
+
+/**
+ * History edit window: today + 3 days back are editable. Older = view-only.
+ */
 export function isEditable(dateStr: string): boolean {
-  const today = getLocalDateString();
-  const yesterday = getLocalDateString(new Date(Date.now() - 86400000));
-  return dateStr === today || dateStr === yesterday;
+  for (let i = 0; i <= 3; i++) {
+    if (dateStr === getISTDateOffset(i)) return true;
+  }
+  return false;
+}
+
+/**
+ * Entry form date picker: today + up to 2 days back are allowed.
+ */
+export function getAllowedEntryDates(): string[] {
+  return [0, 1, 2].map(getISTDateOffset);
 }
 
 export function getFeedback(score: number): string {
